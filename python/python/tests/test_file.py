@@ -578,10 +578,10 @@ def test_pcodec_different_types(tmp_path):
     num_rows = 10_000
 
     test_cases = [
-        ("int16_col", pa.int16(), [i % 32767 for i in range(num_rows)]),
+        ("int16_col", pa.int16(), [i % 32768 for i in range(num_rows)]),
         ("int32_col", pa.int32(), list(range(num_rows))),
         ("int64_col", pa.int64(), list(range(num_rows))),
-        ("uint16_col", pa.uint16(), [i % 65535 for i in range(num_rows)]),
+        ("uint16_col", pa.uint16(), [i % 65536 for i in range(num_rows)]),
         ("uint32_col", pa.uint32(), list(range(num_rows))),
         ("uint64_col", pa.uint64(), list(range(num_rows))),
         ("float32_col", pa.float32(), [float(i) * 0.1 for i in range(num_rows)]),
