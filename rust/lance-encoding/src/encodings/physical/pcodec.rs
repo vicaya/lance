@@ -7,11 +7,15 @@
 //! compression ratio than alternatives. It uses a holistic 3-step approach:
 //! modes, delta encoding, and binning.
 //!
-//! ## Supported Types
+//! ## Supported Bit Widths
 //!
-//! - 16-bit: u16, i16, f16
-//! - 32-bit: u32, i32, f32
-//! - 64-bit: u64, i64, f64
+//! - 16-bit (e.g., u16, i16)
+//! - 32-bit (e.g., u32, i32, f32)
+//! - 64-bit (e.g., u64, i64, f64)
+//!
+//! Note: The encoder treats all data as unsigned integers at the bit level.
+//! This provides lossless compression but may not achieve optimal compression
+//! for floating-point data with specific patterns.
 //!
 //! ## How It Works
 //!
@@ -43,6 +47,9 @@ use snafu::location;
 /// Default compression level for Pcodec (range: 0-12)
 const DEFAULT_COMPRESSION_LEVEL: usize = 8;
 
+/// Maximum compression level supported by Pcodec
+const MAX_COMPRESSION_LEVEL: usize = 12;
+
 /// Maximum chunk size (8KiB - header overhead)
 const MAX_MINIBLOCK_BYTES: usize = 8 * 1024 - 6;
 
@@ -65,7 +72,7 @@ impl PcodecMiniBlockEncoder {
         );
         Self {
             bits_per_value,
-            compression_level: compression_level.min(12),
+            compression_level: compression_level.min(MAX_COMPRESSION_LEVEL),
         }
     }
 }
