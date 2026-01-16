@@ -503,6 +503,132 @@ def test_compression(tmp_path):
     assert size_compress < size_default
 
 
+def test_pcodec_compression(tmp_path):
+    """Test Pcodec compression for numerical data types."""
+    num_rows = 100_000
+
+    # Sequential integers (very compressible with pcodec's delta encoding)
+    int_data = list(range(num_rows))
+
+    # Create schema with pcodec compression
+    schema_pcodec = pa.schema(
+        [
+            pa.field(
+                "int_col",
+                pa.int64(),
+                metadata={"lance-encoding:pcodec": "on"},
+            ),
+        ]
+    )
+    table_pcodec = pa.table(
+        {"int_col": pa.array(int_data, type=pa.int64())},
+        schema=schema_pcodec,
+    )
+
+    # Write file
+    with LanceFileWriter(str(tmp_path / "pcodec.lance"), schema_pcodec) as writer:
+        writer.write_batch(table_pcodec)
+
+    # Verify round-trip correctness
+    reader = LanceFileReader(str(tmp_path / "pcodec.lance"))
+    result = reader.read_all().to_table()
+
+    assert result.num_rows == num_rows
+    assert result.column("int_col").to_pylist() == int_data
+
+
+def test_pcodec_with_compression_level(tmp_path):
+    """Test Pcodec with different compression levels."""
+    num_rows = 50_000
+    int_data = list(range(num_rows))
+
+    # Create schema with custom compression level
+    schema_pcodec = pa.schema(
+        [
+            pa.field(
+                "values",
+                pa.int64(),
+                metadata={
+                    "lance-encoding:pcodec": "on",
+                    "lance-encoding:pcodec-level": "12",  # Max compression
+                },
+            ),
+        ]
+    )
+
+    table = pa.table(
+        {"values": pa.array(int_data, type=pa.int64())},
+        schema=schema_pcodec,
+    )
+
+    # Write and read back
+    with LanceFileWriter(str(tmp_path / "pcodec_level.lance"), schema_pcodec) as writer:
+        writer.write_batch(table)
+
+    reader = LanceFileReader(str(tmp_path / "pcodec_level.lance"))
+    result = reader.read_all().to_table()
+
+    # Verify round-trip correctness
+    assert result.num_rows == num_rows
+    assert result.column("values").to_pylist() == int_data
+
+
+def test_pcodec_different_types(tmp_path):
+    """Test Pcodec with different supported numeric types."""
+    num_rows = 10_000
+
+    test_cases = [
+        ("int16_col", pa.int16(), [i % 32767 for i in range(num_rows)]),
+        ("int32_col", pa.int32(), list(range(num_rows))),
+        ("int64_col", pa.int64(), list(range(num_rows))),
+        ("uint16_col", pa.uint16(), [i % 65535 for i in range(num_rows)]),
+        ("uint32_col", pa.uint32(), list(range(num_rows))),
+        ("uint64_col", pa.uint64(), list(range(num_rows))),
+        ("float32_col", pa.float32(), [float(i) * 0.1 for i in range(num_rows)]),
+        ("float64_col", pa.float64(), [float(i) * 0.1 for i in range(num_rows)]),
+    ]
+
+    for col_name, arrow_type, data in test_cases:
+        schema_pcodec = pa.schema(
+            [
+                pa.field(
+                    col_name,
+                    arrow_type,
+                    metadata={"lance-encoding:pcodec": "on"},
+                ),
+            ]
+        )
+
+        table = pa.table({col_name: pa.array(data, type=arrow_type)}, schema=schema_pcodec)
+
+        path = tmp_path / f"pcodec_{col_name}.lance"
+        with LanceFileWriter(str(path), schema_pcodec) as writer:
+            writer.write_batch(table)
+
+        reader = LanceFileReader(str(path))
+        result = reader.read_all().to_table()
+
+        assert result.num_rows == num_rows, f"Failed for {col_name}"
+
+        # Verify data matches
+        result_data = result.column(col_name).to_pylist()
+        for i, (expected, actual) in enumerate(zip(data, result_data)):
+            if arrow_type == pa.float32():
+                # float32 has limited precision
+                assert abs(expected - actual) < 1e-4, (
+                    f"Float mismatch at index {i} for {col_name}"
+                )
+            elif arrow_type == pa.float64():
+                assert abs(expected - actual) < 1e-10, (
+                    f"Float mismatch at index {i} for {col_name}"
+                )
+            else:
+                assert expected == actual, (
+                    f"Value mismatch at index {i} for {col_name}: "
+                    f"expected {expected}, got {actual}"
+                )
+
+
 def test_blob(tmp_path):
     # 100 1MiB values.  If we store as regular large_binary we end up
     # with several pages of values.  If we store as a blob we get a
