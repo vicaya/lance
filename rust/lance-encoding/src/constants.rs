@@ -48,3 +48,9 @@ pub const STRUCTURAL_ENCODING_FULLZIP: &str = "fullzip";
 pub const BSS_META_KEY: &str = "lance-encoding:bss";
 /// Default BSS mode
 pub const DEFAULT_BSS_MODE: &str = "auto";
+
+// Pcodec metadata keys
+/// Metadata key for pcodec encoding configuration
+pub const PCODEC_META_KEY: &str = "lance-encoding:pcodec";
+/// Metadata key for pcodec compression level (0-12)
+pub const PCODEC_LEVEL_META_KEY: &str = "lance-encoding:pcodec-level";

@@ -18,11 +18,14 @@
 
 #[cfg(feature = "bitpacking")]
 use crate::encodings::physical::bitpacking::{InlineBitpacking, OutOfLineBitpacking};
+#[cfg(feature = "pcodec")]
+use crate::encodings::physical::pcodec::{PcodecMiniBlockDecompressor, PcodecMiniBlockEncoder};
 use crate::{
     buffer::LanceBuffer,
-    compression_config::{BssMode, CompressionFieldParams, CompressionParams},
+    compression_config::{BssMode, CompressionFieldParams, CompressionParams, PcodecMode},
     constants::{
-        BSS_META_KEY, COMPRESSION_LEVEL_META_KEY, COMPRESSION_META_KEY, RLE_THRESHOLD_META_KEY,
+        BSS_META_KEY, COMPRESSION_LEVEL_META_KEY, COMPRESSION_META_KEY, PCODEC_LEVEL_META_KEY,
+        PCODEC_META_KEY, RLE_THRESHOLD_META_KEY,
     },
     data::{DataBlock, FixedWidthDataBlock, VariableWidthBlock},
     encodings::{
@@ -228,6 +231,30 @@ fn try_bitpack_for_mini_block(_data: &FixedWidthDataBlock) -> Option<Box<dyn Min
     }
 }
 
+#[cfg(feature = "pcodec")]
+fn try_pcodec_for_mini_block(
+    data: &FixedWidthDataBlock,
+    params: &CompressionFieldParams,
+) -> Option<Box<dyn MiniBlockCompressor>> {
+    // Pcodec only supports 16, 32, and 64 bit values
+    let bits = data.bits_per_value;
+    if !matches!(bits, 16 | 32 | 64) {
+        return None;
+    }
+
+    // Only use if explicitly requested via pcodec mode
+    let mode = params.pcodec?;
+    if mode != PcodecMode::On {
+        return None;
+    }
+
+    let compression_level = params.pcodec_level.unwrap_or(8) as usize;
+    Some(Box::new(PcodecMiniBlockEncoder::with_compression_level(
+        bits as usize,
+        compression_level,
+    )))
+}
+
 #[cfg(feature = "bitpacking")]
 fn estimate_inline_bitpacking_bytes(data: &FixedWidthDataBlock) -> Option<u64> {
     use arrow_array::cast::AsArray;
@@ -413,6 +440,32 @@ impl DefaultCompressionStrategy {
             }
         }
 
+        // Parse Pcodec mode
+        if let Some(pcodec_str) = field.metadata.get(PCODEC_META_KEY) {
+            match PcodecMode::parse(pcodec_str) {
+                Some(mode) => params.pcodec = Some(mode),
+                None => {
+                    log::warn!("Invalid Pcodec mode '{}', using default", pcodec_str);
+                }
+            }
+        }
+
+        // Parse Pcodec compression level
+        if let Some(pcodec_level_str) = field.metadata.get(PCODEC_LEVEL_META_KEY) {
+            if let Ok(level) = pcodec_level_str.parse::<u32>() {
+                if level <= 12 {
+                    params.pcodec_level = Some(level);
+                } else {
+                    log::warn!(
+                        "Pcodec level '{}' out of range (0-12), using default",
+                        level
+                    );
+                }
+            } else {
+                log::warn!("Invalid Pcodec level '{}', skipping", pcodec_level_str);
+            }
+        }
+
         params
     }
 
@@ -423,6 +476,12 @@ impl DefaultCompressionStrategy {
     ) -> Result<Box<dyn MiniBlockCompressor>> {
         if params.compression.as_deref() == Some("none") {
             return Ok(Box::new(ValueEncoder::default()));
+        }
+
+        // Try pcodec first if explicitly requested (it doesn't need general compression wrapper)
+        #[cfg(feature = "pcodec")]
+        if let Some(compressor) = try_pcodec_for_mini_block(data, params) {
+            return Ok(compressor);
         }
 
         let base = try_bss_for_mini_block(data, params)
@@ -852,6 +911,15 @@ impl DecompressionStrategy for DefaultDecompressionStrategy {
                     compression_config,
                 )))
             }
+            #[cfg(feature = "pcodec")]
+            Compression::Pcodec(pcodec) => Ok(Box::new(PcodecMiniBlockDecompressor::new(
+                pcodec.bits_per_value as usize,
+            ))),
+            #[cfg(not(feature = "pcodec"))]
+            Compression::Pcodec(_) => Err(Error::NotSupported {
+                source: "this runtime was not built with pcodec support".into(),
+                location: location!(),
+            }),
             _ => todo!(),
         }
     }
@@ -1184,6 +1252,8 @@ mod tests {
                 compression_level: None,
                 bss: Some(BssMode::Off), // Explicitly disable BSS to test RLE
                 minichunk_size: None,
+                pcodec: None,
+                pcodec_level: None,
             },
         );
 
@@ -1216,6 +1286,8 @@ mod tests {
                 compression_level: Some(3),
                 bss: Some(BssMode::Off), // Disable BSS to test RLE
                 minichunk_size: None,
+                pcodec: None,
+                pcodec_level: None,
             },
         );
 
@@ -1381,6 +1453,8 @@ mod tests {
                 compression_level: Some(6),
                 bss: None,
                 minichunk_size: None,
+                pcodec: None,
+                pcodec_level: None,
             },
         );
 
@@ -1524,6 +1598,8 @@ mod tests {
                 compression_level: None,
                 bss: None,
                 minichunk_size: None,
+                pcodec: None,
+                pcodec_level: None,
             },
         );
 

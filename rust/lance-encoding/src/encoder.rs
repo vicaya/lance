@@ -803,6 +803,8 @@ mod tests {
                 compression_level: None,
                 bss: None,
                 minichunk_size: None,
+                pcodec: None,
+                pcodec_level: None,
             },
         );
 
