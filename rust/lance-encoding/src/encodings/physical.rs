@@ -10,5 +10,7 @@ pub mod constant;
 pub mod fsst;
 pub mod general;
 pub mod packed;
+#[cfg(feature = "pcodec")]
+pub mod pcodec;
 pub mod rle;
 pub mod value;

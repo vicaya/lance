@@ -744,4 +744,20 @@ impl ProtobufUtils21 {
             ),
         }
     }
+
+    pub fn pcodec(
+        bits_per_value: u64,
+        compression_level: Option<u32>,
+    ) -> crate::format::pb21::CompressiveEncoding {
+        crate::format::pb21::CompressiveEncoding {
+            compression: Some(
+                crate::format::pb21::compressive_encoding::Compression::Pcodec(
+                    crate::format::pb21::Pcodec {
+                        bits_per_value,
+                        compression_level,
+                    },
+                ),
+            ),
+        }
+    }
 }

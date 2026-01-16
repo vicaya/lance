@@ -42,6 +42,26 @@ impl BssMode {
     }
 }
 
+/// Pcodec encoding mode
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum PcodecMode {
+    /// Never use Pcodec
+    Off,
+    /// Always use Pcodec for numerical data
+    On,
+}
+
+impl PcodecMode {
+    /// Parse from string
+    pub fn parse(s: &str) -> Option<Self> {
+        match s.to_lowercase().as_str() {
+            "off" => Some(Self::Off),
+            "on" => Some(Self::On),
+            _ => None,
+        }
+    }
+}
+
 /// Compression parameter configuration
 #[derive(Debug, Clone, PartialEq)]
 pub struct CompressionParams {
@@ -70,6 +90,12 @@ pub struct CompressionFieldParams {
 
     /// Minichunk size threshold for encoding
     pub minichunk_size: Option<i64>,
+
+    /// Pcodec encoding mode for numerical data
+    pub pcodec: Option<PcodecMode>,
+
+    /// Pcodec compression level (0-12, higher = better compression, slower)
+    pub pcodec_level: Option<u32>,
 }
 
 impl CompressionParams {
@@ -136,6 +162,12 @@ impl CompressionFieldParams {
         }
         if other.minichunk_size.is_some() {
             self.minichunk_size = other.minichunk_size;
+        }
+        if other.pcodec.is_some() {
+            self.pcodec = other.pcodec;
+        }
+        if other.pcodec_level.is_some() {
+            self.pcodec_level = other.pcodec_level;
         }
     }
 }
@@ -204,6 +236,8 @@ mod tests {
             compression_level: None,
             bss: Some(BssMode::On),
             minichunk_size: None,
+            pcodec: None,
+            pcodec_level: None,
         };
 
         params.merge(&other);
@@ -218,6 +252,8 @@ mod tests {
             compression_level: Some(3),
             bss: Some(BssMode::Auto),
             minichunk_size: None,
+            pcodec: None,
+            pcodec_level: None,
         };
 
         params.merge(&another);
@@ -250,6 +286,8 @@ mod tests {
                 compression_level: Some(3),
                 bss: None,
                 minichunk_size: None,
+                pcodec: None,
+                pcodec_level: None,
             },
         );
 

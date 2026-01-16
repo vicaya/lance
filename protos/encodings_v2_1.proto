@@ -468,6 +468,23 @@ message ByteStreamSplit {
   CompressiveEncoding values = 1;
 }
 
+// A compression scheme using Pcodec for numerical sequences
+//
+// Pcodec is a lossless codec for numerical sequences that typically gets better compression
+// ratio than alternatives. It uses a holistic 3-step approach: modes, delta encoding, and binning.
+//
+// This is an opaque encoding.
+//
+// The input is a fixed-width data block (u16, u32, u64, i16, i32, i64, f16, f32, f64)
+// The output is a single buffer
+message Pcodec {
+  // The number of bits of the uncompressed value (e.g., 16, 32, or 64)
+  uint64 bits_per_value = 1;
+  // The compression level (0-12, higher = better compression, slower)
+  // Optional, defaults to 8 if not specified
+  optional uint32 compression_level = 2;
+}
+
 // An encoding that compresses a data block into buffers
 message CompressiveEncoding {
     oneof compression {
@@ -484,5 +501,6 @@ message CompressiveEncoding {
         FixedSizeList fixed_size_list = 11;
         PackedStruct packed_struct = 12;
         VariablePackedStruct variable_packed_struct = 13;
+        Pcodec pcodec = 14;
     }
 }

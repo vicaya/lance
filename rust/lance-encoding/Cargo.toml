@@ -41,6 +41,7 @@ xxhash-rust = { version = "0.8.15", features = ["xxh3"] }
 bytemuck = { version = "1.14", features = ["extern_crate_alloc"] }
 byteorder.workspace = true
 lz4 = { version = "1", optional = true }
+pco = { version = "1.0.0-rc", optional = true }
 zstd = { version = "0.13", optional = true }
 
 [dev-dependencies]
@@ -62,10 +63,11 @@ protobuf-src = { version = "2.1", optional = true }
 pprof = { workspace = true }
 
 [features]
-default = ["lz4", "zstd", "bitpacking"]
+default = ["lz4", "zstd", "bitpacking", "pcodec"]
 protoc = ["dep:protobuf-src"]
 bitpacking = ["dep:lance-bitpacking"]
 lz4 = ["dep:lz4"]
+pcodec = ["dep:pco"]
 zstd = ["dep:zstd"]
 
 [package.metadata.docs.rs]
