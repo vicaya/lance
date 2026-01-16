@@ -468,4 +468,25 @@ mod tests {
         let result: &[i32] = bytemuck::cast_slice(block.data.as_ref());
         assert_eq!(result.len(), 10);
     }
+
+    #[test_log::test(tokio::test)]
+    async fn test_pcodec_encoding_round_trip() {
+        use crate::testing::{check_round_trip_encoding_of_data, TestCases};
+        use crate::version::LanceFileVersion;
+        use std::collections::HashMap;
+        use std::sync::Arc;
+
+        let test_cases = TestCases::default()
+            .with_expected_encoding("pcodec")
+            .with_min_file_version(LanceFileVersion::V2_1);
+
+        // Test with explicit pcodec metadata
+        let metadata =
+            HashMap::from([("lance-encoding:pcodec".to_string(), "on".to_string())]);
+
+        // Test i32 array
+        let data: Vec<i32> = (0..5000).collect();
+        let arr = Arc::new(Int32Array::from(data)) as Arc<dyn arrow_array::Array>;
+        check_round_trip_encoding_of_data(vec![arr], &test_cases, metadata).await;
+    }
 }
