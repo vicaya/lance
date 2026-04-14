@@ -93,7 +93,7 @@ half = { "version" = "2.1", default-features = false, features = [
 ] }
 lance-bitpacking = { version = "=2.0.0-beta.9", path = "./rust/compression/bitpacking" }
 bitvec = "1"
-bytes = "1.4"
+bytes = "1.11"
 byteorder = "1.5"
 clap = { version = "4", features = ["derive"] }
 chrono = { version = "0.4.41", default-features = false, features = [
@@ -161,7 +161,7 @@ proptest = "1.3.1"
 prost = "0.14.1"
 prost-build = "0.14.1"
 prost-types = "0.14.1"
-rand = { version = "0.9.1", features = ["small_rng"] }
+rand = { version = "0.9.3", features = ["small_rng"] }
 rand_distr = { version = "0.5.1" }
 rand_xoshiro = "0.7.0"
 rangemap = { version = "1.0" }
